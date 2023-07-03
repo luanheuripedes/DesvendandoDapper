@@ -25,6 +25,13 @@ using (var connection = new SqlConnection(connectionString))
     var sqlUpdate = "Update Orders Set OrderDetails = @OrderDetails WHERE OrderId = @OrderId";
     connection.Execute(sqlUpdate, new { OrderDetails = "Update Details", OrderId = 1 });
     */
+
+    //Procedures
+    var parameters = new DynamicParameters();
+    parameters.Add("@OrderId", 1);
+
+    var orderDetailsFromSp = connection.Query<OrderDetailResult>("GetOrderDetails", parameters, commandType: System.Data.CommandType.StoredProcedure).SingleOrDefault();
+
 }
 
 Console.Read();
@@ -50,4 +57,12 @@ public class OrderItem
     public string ProductName { get; set; }
     public int ProductQuantity { get; set; }
     public int OrderFk { get; set; }
+}
+
+public class OrderDetailResult
+{
+    public int OrderId { get; set; }
+    public string OrderDetails { get; set; }
+    public string CustomerId { get; set; }
+    public string CustomerName { get; set; }
 }
