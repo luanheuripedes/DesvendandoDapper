@@ -1,4 +1,5 @@
-﻿using System.Data.SqlClient;
+﻿using System.Data;
+using System.Data.SqlClient;
 using Dapper;
 
 var connectionString = "Server=localhost; Database=DotLive08_Ecommerce; User Id=sa; Password=1q2w3e4r@#$;trustServerCertificate=true;MultipleActiveResultSets=True";
@@ -35,6 +36,7 @@ using (var connection = new SqlConnection(connectionString))
     */
 
     //Select SIMPLES
+    /*
     var sqlOrderById = @"SELECT * FROM Orders Where OrderId = @OrderId";
     var sqlOrderByIdResult = connection.QuerySingleOrDefault<Order>(sqlOrderById, new { OrderId = 2 });
 
@@ -50,8 +52,87 @@ using (var connection = new SqlConnection(connectionString))
 	    WHERE o.OrderId = @OrderId;";
 
     var sqlOrderByIdProjectionResult = connection.Query<OrderDetailResult>(sqlOrderByIdProjection, new { OrderId = 1}).SingleOrDefault();
+    */
 
     //SELECT com objetos mesclados
+    var sqlOrderByIdProjection = @"SELECT
+		o.OrderId, o.OrderDetails,
+		c.CustomerId, c.CustomerName
+	    FROM Orders o
+	    INNER JOIN Customers c ON o.CustomersFk = c.CustomerId
+	    WHERE o.OrderId = @OrderId;";
+
+    var parameters = new DynamicParameters();
+    parameters.Add("@OrderId", 1);
+
+
+    var orderWithCustomerResult = connection.Query<Order, Customer, Order>(sqlOrderByIdProjection,
+        (order, customer) =>
+    {
+        order.Customer = customer;
+        order.CustomersFk = customer.CustomerId;
+        return order;
+    }, param: parameters, splitOn: "CustomerId")
+        .SingleOrDefault();
+
+    //Com procedure
+    var orderDetailsWithCustomerFromSp = connection.Query<Order, Customer, Order>("GetOrderDetails",
+        (order, customer) =>
+        {
+            order.Customer = customer;
+            order.CustomersFk = customer.CustomerId;
+
+            return order;
+        },
+        param: parameters,
+        splitOn: "CustomerId",
+        commandType: CommandType.StoredProcedure).SingleOrDefault();
+
+    var sqlOrderDetailsWithOrderItems = @"SELECT 
+            o.OrderId, o.OrderDetails, 
+            c.CustomerId, c.CustomerName, 
+            od.OrderItemId, od.ProductName, od.ProductQuantity 
+          FROM Orders o
+          INNER JOIN Customers c ON o.CustomersFk = c.CustomerId
+          INNER JOIN OrderItems od ON o.OrderId = od.OrderFk
+          WHERE o.OrderId = @OrderId";
+
+
+    //Preenchendo as variaveis de navegação do Order
+    var orderDictionary = new Dictionary<int, Order>();
+    var orderDetailsWithOrderItems = connection.Query<Order, Customer, OrderItem, Order>(
+        sqlOrderDetailsWithOrderItems,
+        (order, customer, orderItem) =>
+        {
+            Order orderEntry;
+
+            if (!orderDictionary.TryGetValue(order.OrderId, out orderEntry))
+            {
+                orderEntry = order;
+                orderEntry.Items = new List<OrderItem>();
+                orderEntry.CustomersFk = customer.CustomerId;
+
+                orderDictionary.Add(orderEntry.OrderId, orderEntry);
+            }
+
+            if (orderEntry.Customer == null)
+                orderEntry.Customer = customer;
+
+            orderItem.OrderFk = order.OrderId;
+
+            orderEntry.Items.Add(orderItem);
+
+            return orderEntry;
+        },
+        new { OrderId = 1 },
+        splitOn: "CustomerId,OrderItemId"
+        )
+        .Distinct()
+        .SingleOrDefault();
+
+    //DELETE
+    var sqlDelete = "DELETE FROM Orders WHERE OrderId = @OrderId";
+    connection.Execute(sqlDelete, new { OrderId = 2 });
 
 }
 
