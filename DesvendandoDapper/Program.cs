@@ -7,8 +7,19 @@ var connectionString = "Server=localhost; Database=DotLive08_Ecommerce; User Id=
 using (var connection = new SqlConnection(connectionString))
 {
     connection.Open();
+
+    //Retorna a quantidade de linhas afetadas
+    var sqlInsert = "INSERT INTO Orders(OrderId, CustomersFk,OrderDetails) VALUES(@OrderId, @CustomersFk, @OrderDetails)";
+    connection.Execute(sqlInsert, new { OrderId = 1, CustomersFk = 1, OrderDetails = "Detalhes" });
+
+    //Retorna o Id INSERIDO
+    var sqlInsert2 = "INSERT INTO Orders OUTPUT INSERTED.OrderId VALUES(@OrderId, @CustomersFk, @OrderDetails)";
+    var id = connection.ExecuteScalar<int>(sqlInsert2, new { OrderId = 2, CustomersFk = 1, OrderDetails = "Detalhes" });
+
+    
 }
 
+Console.Read();
 public class Order
 {
     public int OrderId { get; set; }
