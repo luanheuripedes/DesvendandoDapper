@@ -26,11 +26,32 @@ using (var connection = new SqlConnection(connectionString))
     connection.Execute(sqlUpdate, new { OrderDetails = "Update Details", OrderId = 1 });
     */
 
-    //Procedures
+    //Stored Procedures
+    /*
     var parameters = new DynamicParameters();
     parameters.Add("@OrderId", 1);
 
     var orderDetailsFromSp = connection.Query<OrderDetailResult>("GetOrderDetails", parameters, commandType: System.Data.CommandType.StoredProcedure).SingleOrDefault();
+    */
+
+    //Select SIMPLES
+    var sqlOrderById = @"SELECT * FROM Orders Where OrderId = @OrderId";
+    var sqlOrderByIdResult = connection.QuerySingleOrDefault<Order>(sqlOrderById, new { OrderId = 2 });
+
+
+    var sqlAllOrders = @"SELECT * FROM Orders";
+    var sqlAllOrdersResult = connection.Query<Order>(sqlAllOrders).ToList();
+
+    var sqlOrderByIdProjection = @"SELECT
+		o.OrderId, o.OrderDetails,
+		c.CustomerId, c.CustomerName
+	    FROM Orders o
+	    INNER JOIN Customers c ON o.CustomersFk = c.CustomerId
+	    WHERE o.OrderId = @OrderId;";
+
+    var sqlOrderByIdProjectionResult = connection.Query<OrderDetailResult>(sqlOrderByIdProjection, new { OrderId = 1}).SingleOrDefault();
+
+    //SELECT com objetos mesclados
 
 }
 
